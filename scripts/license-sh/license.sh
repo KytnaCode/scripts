@@ -2,12 +2,11 @@
 #! nix-shell -i bash -p bash gum jq
 # shellcheck shell=bash
 
-licenses_res="$(curl \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/licenses)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
-licenses_pairs="$(jq '.[] | [.key, .name] | join(" --- ")' <<<"$licenses_res" | sed -e 's/^"//' -e 's/"$//')"
+licenses="$(cat "$SCRIPT_DIR"/licenses.json)"
+
+licenses_pairs="$(jq '. as $root | keys[] | [., $root[.].name] | join(" --- ")' <<<"$licenses" | sed -e 's/^"//' -e 's/"$//')"
 
 options="$(printf "%s\nnone" "$licenses_pairs")" # Add none option.
 
@@ -17,10 +16,7 @@ if [[ "$license" == none || -z "$license" ]]; then
   exit 0
 fi
 
-license_content="$(curl -L \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "https://api.github.com/licenses/$license" | jq --raw-output '.body')"
+license_content="$(jq -r ".[\"$license\"].body" <<<"$licenses")"
 
 echo "$license_content" >LICENSE.txt
 
